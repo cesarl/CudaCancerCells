@@ -1,0 +1,53 @@
+#version 430 core
+
+layout(std430, binding = 4) buffer Pos
+{
+	vec4 Positions[ ];
+};
+
+layout(std430, binding = 5) buffer GCnt
+{
+	uint GridCounter[ ];
+};
+
+layout(std430, binding = 6) buffer Gr
+{
+	uint Grid[ ];
+};
+
+layout(std430, binding = 7) buffer Colo
+{
+	vec4 Color[ ];
+};
+
+layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+
+
+uniform uint CellSize;
+uniform uint MaxParticlePerCell;
+uniform uvec3 GridSize;
+uniform vec3 MinGrid;
+ 
+void main()
+{
+	uint gid = gl_GlobalInvocationID.x;
+
+	vec3 p = Positions[gid].xyz;
+
+	vec3 pp = p - MinGrid;
+	uvec3 cellIndexVec = uvec3(pp.x / float(CellSize), pp.y / float(CellSize), pp.z / float(CellSize));
+	if (cellIndexVec.x >= GridSize.x || cellIndexVec.y >= GridSize.y || cellIndexVec.z >= GridSize.z)
+	{
+		Color[gid].xyz = vec3(0.2,0.2,0.2);
+		return;
+	}
+	uint counterIndex = cellIndexVec.x + cellIndexVec.y * GridSize.x + cellIndexVec.z * GridSize.x * GridSize.y;
+	uint index = atomicAdd(GridCounter[counterIndex], 1);
+	if (index < MaxParticlePerCell)
+	{
+		Grid[counterIndex * MaxParticlePerCell + index] = gid;
+	}
+	Color[gid].x = cellIndexVec.x * 1.0f / GridSize.x * 1.0f;
+	Color[gid].y = cellIndexVec.y * 1.0f / GridSize.y * 1.0f;
+	Color[gid].z = cellIndexVec.z * 1.0f / GridSize.z * 1.0f;
+}
